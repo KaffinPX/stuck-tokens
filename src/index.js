@@ -1,64 +1,42 @@
+const web3 = new Web3("https://eth.llamarpc.com")
 const ERC20 = [{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_spender","type":"address"},{"name":"_value","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_from","type":"address"},{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transferFrom","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_owner","type":"address"},{"name":"_spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"payable":true,"stateMutability":"payable","type":"fallback"},{"anonymous":false,"inputs":[{"indexed":true,"name":"owner","type":"address"},{"indexed":true,"name":"spender","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"from","type":"address"},{"indexed":true,"name":"to","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Transfer","type":"event"}]
 
-const config = {
-  covalentKey: "cqt_rQDQ3pYkcbTtVh4hrhmJTfM6tCqM",
-  nodeRPC: "https://eth.llamarpc.com"
-}
-
 window.onload = () => {
-  const web3 = new Web3(config.nodeRPC)
-
   document.getElementById('scan').onclick = async () => {    
-    const token = new web3.eth.Contract(ERC20, document.getElementById('tokenContract').value)
-    const decimals = BigInt(Number(`1e${await token.methods.decimals().call()}`))
-    const ticker = await token.methods.symbol().call()
-    const whitelistedContracts = document.getElementById('whitelistContracts').value.split('\n')
+    const tokens = document.getElementById('tokenContracts').value.split('\n')
+    const summary = []
 
-    let queryFinished = false
-    let stuckTokens = 0n
-    let checkedAddress = 0
-     
-    while (!queryFinished) {
-      const fetchApi = async () => {
-        return await fetch(`https://api.covalenthq.com/v1/eth-mainnet/tokens/${token.options.address}/token_holders_v2/?key=${config.covalentKey}&page-size=100`, { method: 'GET' }).catch(async () => {
-          console.log('ERR: Fetching api failed, retrying...')
+    for (const contractAddress of tokens) {
+      const token = new web3.eth.Contract(ERC20, contractAddress)
+      const ticker = await token.methods.symbol().call()
+      const decimals = await token.methods.decimals().call()
+      const price = (await (await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${ticker}&tsyms=USD`)).json())?.USD ?? 0
     
-          return await fetchApi()
-        })
-      }
-      const request = await fetchApi()
-      const result = (await request.json()).data
-      
-      for (const holder of result.items) {
-        const address = holder.address
-        const balance = BigInt(holder.balance)
-    
-        if ((!whitelistedContracts.includes(address)) && isContract(address)) {
-          stuckTokens += balance
-        }
-    
-        checkedAddress += 1
+      let stuckAmount = 0n
 
-        if (result.pagination.total_count == checkedAddress) {
-          queryFinished = true
-        }
+      for (const address of tokens) {
+        if (contractAddress !== address) continue
+        
+        const balance = await token.methods.balanceOf(contractAddress).call()
+
+        stuckAmount += BigInt(balance)
       }
-      
-      document.getElementById('status').innerText += `Checked ${checkedAddress}/${result.pagination.total_count} in total, found ${stuckTokens / decimals} ${ticker} stuck.`
+
+      const roundedAmount = Number(stuckAmount / BigInt(Number(`1e${decimals}`)))
+
+      summary.push({ ticker, amount: roundedAmount, asDollar: roundedAmount * price })
+      document.getElementById('status').innerText = `Found ${roundedAmount} ${ticker} stuck in other contracts!`
     }
     
-    document.getElementById('status').innerText += `${stuckTokens / decimals} ${ticker} is stuck in unwhitelisted contracts.`
-  }
+    document.getElementById('status').innerHTML = "Succesfully calculated how much tokens are stuck:"
+    let stuckDollars = 0
 
-  async function isContract (address) {
-    const result = await web3.eth.getCode(address).catch(async () => {
-      console.log('ERR: Executing ETH RPC failed, retrying...')
-  
-      return await isContract(address)
-    })
-  
-    if (result !== "0x") {
-      return true
-    } else return false
+    for (const log of summary) {
+      stuckDollars += log.asDollar
+
+      document.getElementById('status').innerHTML = document.getElementById('status').innerHTML + `\n+ ${log.amount} ${log.ticker} worth $${log.asDollar} is stuck.`
+    }
+
+    document.getElementById('status').innerHTML = document.getElementById('status').innerHTML + `\nAs summary $${stuckDollars} is stuck.`
   }
 }
