@@ -11,6 +11,7 @@ window.onload = () => {
   document.getElementById('scan').onclick = async () => {    
     const token = new web3.eth.Contract(ERC20, document.getElementById('tokenContract').value)
     const decimals = BigInt(Number(`1e${await token.methods.decimals().call()}`))
+    const ticker = await token.methods.symbol().call()
     const whitelistedContracts = document.getElementById('whitelistContracts').value.split('\n')
 
     let queryFinished = false
@@ -37,12 +38,16 @@ window.onload = () => {
         }
     
         checkedAddress += 1
+
+        if (result.pagination.total_count == checkedAddress) {
+          queryFinished = true
+        }
       }
       
-      document.getElementById('status').innerText += `\nChecked ${checkedAddress}/${result.pagination.total_count} in total, found ${stuckTokens / decimals} stuck tokens.`
+      document.getElementById('status').innerText += `Checked ${checkedAddress}/${result.pagination.total_count} in total, found ${stuckTokens / decimals} ${ticker} stuck.`
     }
     
-    document.getElementById('status').innerText += `\n${stuckTokens / decimals} amount of tokens is on unwhitelisted contracts.`
+    document.getElementById('status').innerText += `${stuckTokens / decimals} ${ticker} is stuck in unwhitelisted contracts.`
   }
 
   async function isContract (address) {
