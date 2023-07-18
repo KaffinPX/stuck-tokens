@@ -1,0 +1,23 @@
+<header>
+  <title>Stuck Tokens Checker</title>
+  <script src="https://cdn.jsdelivr.net/gh/ethereum/web3.js/dist/web3.min.js"></script>
+  <script src="./src/index.js"></script>
+  <link rel="stylesheet" href="src/style.css">
+</header>
+<body>
+  <div class="split left">
+    <div class="centered">
+      <h2>Stuck tokens scanner</h2>
+      <input id="tokenContract" type="text" placeholder="Token contract address"></input>
+      <textarea id="whitelistContracts" placeholder="Whitelisted contract addresses seperated with newline"></textarea>
+      <br>
+      <button id="scan">Scan</button>
+    </div>
+  </div>
+  <div class="split right">
+    <div class="centered">
+      <h2>Status</h2>
+      <textarea id="status" disabled></textarea>
+    </div>
+  </div>
+</body>
