@@ -15,11 +15,11 @@ window.onload = () => {
       let stuckAmount = 0n
 
       for (const address of tokens) {
-        if (contractAddress !== address) continue
-        
-        const balance = await token.methods.balanceOf(contractAddress).call()
-
-        stuckAmount += BigInt(balance)
+        if (contractAddress !== address) {
+          const balance = await token.methods.balanceOf(address).call()
+  
+          stuckAmount += BigInt(balance)
+        }
       }
 
       const roundedAmount = Number(stuckAmount / BigInt(Number(`1e${decimals}`)))
