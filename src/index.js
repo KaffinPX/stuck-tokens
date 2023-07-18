@@ -52,5 +52,7 @@ window.onload = () => {
     tokenContracts.disabled = false
 
     status.innerHTML = status.innerHTML + `\nAs summary $${stuckDollars} is stuck.`
+    
+    alert(`Scan completed.\n$${stuckDollars} worth of ERC-20 were stuck in reviewed contracts!`)
   }
 }
